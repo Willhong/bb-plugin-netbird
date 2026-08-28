@@ -339,7 +339,18 @@ export default async function plugin(bb: BbPluginApi) {
 
   async function stop(): Promise<{ ok: boolean; message: string | null }> {
     if (up.child) {
-      up.child.kill("SIGTERM");
+      const child = up.child;
+      // Mark this flow as intentionally cancelled before SIGTERM so the
+      // child's close handler cannot turn a user cancellation into an error.
+      releaseUp();
+      setPhase({
+        phase: "idle",
+        deviceUrl: null,
+        userCode: null,
+        message: null,
+        startedAt: null,
+      });
+      child.kill("SIGTERM");
     }
     const { code, stdout, stderr } = await runCli(await bin(), ["down"], 15_000);
     if (code === 0) return { ok: true, message: null };
