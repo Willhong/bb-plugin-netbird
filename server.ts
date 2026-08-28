@@ -262,7 +262,6 @@ export default async function plugin(bb: BbPluginApi) {
         mgmt,
         "--admin-url",
         mgmt,
-        "--use-device-auth",
         "--log-file",
         "console",
       ],
