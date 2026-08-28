@@ -262,6 +262,7 @@ export default async function plugin(bb: BbPluginApi) {
         mgmt,
         "--admin-url",
         mgmt,
+        "--no-browser",
         "--log-file",
         "console",
       ],
@@ -280,7 +281,12 @@ export default async function plugin(bb: BbPluginApi) {
     const onData = (chunk: Buffer) => {
       up.buffer += chunk.toString();
       if (!up.state.deviceUrl) {
-        const url = up.buffer.match(/(https?:\/\/[^\s]*?user_code=[^\s]+)/);
+        // Stock NetBird on macOS emits a PKCE URL (`/oauth2/auth`) while
+        // device-flow builds emit `/oauth2/device?...user_code=...`. Capture
+        // either and let the BB frontend open it in the user's browser.
+        const url =
+          up.buffer.match(/Use this URL to log in:\s*(https?:\/\/[^\s\x1b]+)/i) ??
+          up.buffer.match(/(https?:\/\/[^\s\x1b]+\/oauth2\/(?:auth|device)\?[^\s\x1b]+)/i);
         if (url) {
           const code = up.buffer.match(/user_code=([A-Z0-9][A-Z0-9-]{3,})/);
           setPhase({

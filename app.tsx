@@ -4,7 +4,7 @@
 // Compiled by `bb plugin build` into dist/app.js + dist/app.css; React and
 // @get-bb/plugin-sdk/app are provided by the BB app at load time.
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { definePluginApp, useRealtime, useRpc } from "@get-bb/plugin-sdk/app";
 import type { NetbirdState, rpcContract, StatusSummary } from "./server";
 import { Button } from "@/components/ui/button";
@@ -111,9 +111,13 @@ function DeviceCard({ view }: { view: ViewState }) {
   return (
     <Card className="border-amber-500/40">
       <CardHeader>
-        <CardTitle className="text-sm">Device code approval needed</CardTitle>
+        <CardTitle className="text-sm">
+          {userCode ? "Device code approval needed" : "NetBird login required"}
+        </CardTitle>
         <CardDescription>
-          Open the login page, sign in, and enter this code:
+          {userCode
+            ? "Open the login page, sign in, and enter this code:"
+            : "Continue sign-in in the browser tab opened from BB."}
         </CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-3">
@@ -206,15 +210,41 @@ function NetbirdPanel() {
   const rpc = useRpc<typeof rpcContract>();
   const { view, refreshing, refetch } = useNetbird(rpc);
   const [busy, setBusy] = useState(false);
+  const loginWindow = useRef<Window | null>(null);
+
+  // `netbird up --no-browser` prints the URL asynchronously. Reserve a tab
+  // synchronously from the Connect click (avoids popup blocking), then move it
+  // to the URL when realtime/RPC state receives it. The card link remains the
+  // fallback if the browser blocks popups.
+  useEffect(() => {
+    const url = view?.up.deviceUrl;
+    const tab = loginWindow.current;
+    if (!url || !tab || tab.closed) return;
+    tab.opener = null;
+    tab.location.replace(url);
+    loginWindow.current = null;
+  }, [view?.up.deviceUrl]);
 
   const act = useCallback(
     async (method: "up" | "down") => {
       setBusy(true);
       try {
-        if (method === "up") await rpc.call("up");
-        else await rpc.call("down");
+        if (method === "up") {
+          loginWindow.current = window.open("about:blank", "_blank");
+          const result = await rpc.call("up");
+          const tab = loginWindow.current;
+          if (result.deviceUrl && tab && !tab.closed) {
+            tab.opener = null;
+            tab.location.replace(result.deviceUrl);
+            loginWindow.current = null;
+          }
+        } else {
+          await rpc.call("down");
+        }
         refetch();
       } catch (err) {
+        loginWindow.current?.close();
+        loginWindow.current = null;
         // The state RPC surfaces the failure; a toast keeps the click honest.
         // eslint-disable-next-line no-console
         console.error("netbird action failed", err);
@@ -264,7 +294,7 @@ function NetbirdPanel() {
       {busyFlow && <DeviceCard view={view} />}
 
       {up.phase === "error" && (
-        <ErrorCard title="Device-code flow failed" message={up.message ?? "unknown error"} />
+        <ErrorCard title="NetBird login failed" message={up.message ?? "unknown error"} />
       )}
       {error && !up.message && (
         <ErrorCard title="Status unavailable" message={error} />
@@ -316,7 +346,7 @@ function NetbirdPanel() {
         ) : (
           <Button disabled={busy || busyFlow} onClick={() => void act("up")}>
             <Icon name="ElectricPlugs" className="mr-2 size-4" />
-            {busyFlow ? "Waiting…" : "Connect (device code)"}
+            {busyFlow ? "Waiting…" : "Connect"}
           </Button>
         )}
         {busyFlow && (
