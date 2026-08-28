@@ -75,7 +75,7 @@ function PhaseDot({ view }: { view: ViewState }) {
   let pulse = false;
   if (up.phase === "waiting-approval" || up.phase === "starting") {
     color = "bg-amber-500";
-    label = up.phase === "starting" ? "Starting device login…" : "Waiting for approval";
+    label = up.phase === "starting" ? "Starting browser login…" : "Waiting for approval";
     pulse = true;
   } else if (up.phase === "connecting") {
     color = "bg-sky-500";

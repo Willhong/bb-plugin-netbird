@@ -380,7 +380,7 @@ export default async function plugin(bb: BbPluginApi) {
   const usage = [
     "Usage:",
     "  bb netbird status [--json]    show connection status",
-    "  bb netbird up [--wait]        connect via device-code flow",
+    "  bb netbird up [--wait]        connect via browser login",
     "  bb netbird down               disconnect",
   ].join("\n");
 
@@ -408,31 +408,37 @@ export default async function plugin(bb: BbPluginApi) {
   function formatUpState(state: UpState): string {
     switch (state.phase) {
       case "waiting-approval":
-        return [
-          "Device-code flow started — waiting for approval.",
-          "Open this URL in a browser and enter the code:",
-          `  ${state.deviceUrl}`,
-          `  user code: ${state.userCode ?? "?"}`,
-        ].join("\n");
+        return state.userCode
+          ? [
+              "Browser login started — waiting for approval.",
+              "Open this URL in a browser and enter the code:",
+              `  ${state.deviceUrl}`,
+              `  user code: ${state.userCode}`,
+            ].join("\n")
+          : [
+              "Browser login started — waiting for approval.",
+              "Open this URL in the BB browser:",
+              `  ${state.deviceUrl}`,
+            ].join("\n");
       case "starting":
-        return "Device-code flow starting — the login URL will appear in a few seconds (re-run `bb netbird status` or wait and re-run `bb netbird up`).";
+        return "Browser login starting — the login URL will appear in a few seconds (re-run `bb netbird status` or wait and re-run `bb netbird up`).";
       case "connecting":
         return "Approved — connecting to the mesh…";
       case "error":
-        return `Device-code flow failed: ${state.message ?? "unknown error"}`;
+        return `Browser login failed: ${state.message ?? "unknown error"}`;
       case "idle":
-        return "No device-code flow running.";
+        return "No browser login running.";
     }
   }
 
   bb.cli.register({
     name: "netbird",
-    summary: "Self-hosted NetBird mesh: device-code connect, status, disconnect",
+    summary: "Self-hosted NetBird mesh: browser login, status, disconnect",
     commands: [
       { name: "status", summary: "Show connection status", usage: "bb netbird status [--json]" },
       {
         name: "up",
-        summary: "Connect via device-code flow (prints the login URL + user code)",
+        summary: "Connect via browser login (prints the login URL)",
         usage: "bb netbird up [--wait]",
       },
       { name: "down", summary: "Disconnect from the mesh", usage: "bb netbird down" },

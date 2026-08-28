@@ -8,7 +8,7 @@
   },
   "bb": {
     "name": "NetBird",
-    "description": "Self-hosted NetBird mesh: device-code login, live connection status, peer list.",
+    "description": "Self-hosted NetBird mesh: browser login, live connection status, peer list.",
     "branding": {
       "icon": "Globe"
     },
